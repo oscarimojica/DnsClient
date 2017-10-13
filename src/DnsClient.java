@@ -1,3 +1,4 @@
+import java.util.BitSet;
 import java.util.Random;
 import  java.io.*;
 import  java.net.*;
@@ -28,10 +29,22 @@ public class DnsClient {
 		sendData = msg.getBytes();
 		System.out.println(sendData);
 		
+		
+		
+		// RECEIVING		
 		String receivedMsg = msg;
-		analyseReceivedHeader(receivedMsg, msg);
+		//analyseReceivedHeader(receivedMsg, msg);		
 		
-		
+		//TESTING CODE FOR BITSET MANIPULATIONS
+		BitSet bt = new BitSet (32);
+		bt.set(3);
+		/*boolean btValue = true;
+		for(int i = 0; i<bt.length();i++) {
+			bt.set(i,btValue);
+			btValue = !btValue;
+		}*/
+		System.out.println(bt.length());
+			
 	}
 	
 	
@@ -50,37 +63,40 @@ public class DnsClient {
 			return "0";
 	}
 	
-	public static void analyseReceivedHeader(String headerReceived, String headerSent) {
-		//HEADER
+	//HEADER
+	public static void analyseReceivedHeader(BitSet headerReceived, BitSet headerSent) {
 		//ID
-		if(!headerReceived.substring(0, 16).equals(headerSent.substring(0, 16))) {
+		if(!headerReceived.get(0, 16).equals(headerSent.get(0, 16))) {
 			System.out.println("not the good id");
 		}//QR
-		if(!headerReceived.substring(16,17).equals("1")) {
+		if(!headerReceived.get(16)) {
 			System.out.println("this is not a response");
 		}//OPCODE
-		if(!headerReceived.substring(17,22).equals("0000")) {
+		if(!headerReceived.get(17,21).equals(headerSent.get(17,21))) {
 			System.out.println("not a standard query");
 		}//AA
-		if(headerReceived.substring(22,23).equals("1")) {
+		if(headerReceived.get(21)) {
 			System.out.println("authoritative response");
 		}
 		else {
 			System.out.println("non authoritative response");
 		}//TC
-		if(headerReceived.substring(23,24).equals("1")) {
+		if(headerReceived.get(22)) {
 			System.out.println("truncated response");
 		}//RD
-		if(!headerReceived.substring(23,24).equals("1")) {
+		if(!headerReceived.get(23)) {
 			System.out.println("no recursion requested?");
 		}//RA
-		if(!headerReceived.substring(24,25).equals("1")) {
+		if(!headerReceived.get(24)) {
 			System.out.println("recursion possible from server");
 		}
 		else {
 			System.out.println("no recursion possible from server");
-		} //TODO: RCODE, needs implementation, ignored Z (3 bits)
-		if(!headerReceived.substring(28,33).equals("00000")) {
+		} 
+		// ignored Z (3 bits)
+		//TODO: RCODE, needs implementation,
+		if(!headerReceived.get(28)||!headerReceived.get(29)||!headerReceived.get(30)
+				|| !headerReceived.get(31)||!headerReceived.get(32)) {
 			System.out.println("some error");
 		}
 						
@@ -90,10 +106,27 @@ public class DnsClient {
 	public static void analyseReceivedQuestion
 	(ByteBuffer questionReceived, ByteBuffer questionSent) {
 		//check if both questionReceived and ByteBuffer questionSent are the same
+		//check either as bytebuffers or as byte arrays
+		if(!questionReceived.equals(questionSent)) {
+			System.out.println("didn't receive the right question");
+		}
 	}
 	
 	public static void analyseReceivedAnswer
 		(ByteBuffer answerReceived) {
-			
-		}
+		// parse bytes, but need to know when a byte is part of an
+		// offset signal
+		
+		//NAME: most likely an offset to the sent package? need bit manipulations
+		
+		// TYPE: 16 bit (2 bytes) specific values
+		
+		// CLASS: should be 0x0001
+		
+		// TTL: 32 bit (4 byes) check if 0?
+		
+		//RDLENGTH: 16 bit int (4 bytes) length of RDATA
+		
+		// RDATAL: depends on TYPE
+	}
 }
