@@ -5,6 +5,8 @@ import  java.net.*;
 import java.nio.ByteBuffer;
 
 public class DnsClient {
+	
+	public static int position = 0;
 
 	public static void main(String[] args) throws IOException {
 
@@ -60,6 +62,14 @@ public class DnsClient {
 			btValue = !btValue;
 		}*/
 		System.out.println(bt.length());
+		
+		
+		// RECEIVING		
+		byte[] bytearr = new byte [2];
+		bytearr[0] = (byte) 3;
+		bytearr[1] = (byte) 4;
+		ByteBuffer buf = ByteBuffer.wrap(bytearr);
+		System.out.println(buf.getShort(0));
 
 	}
 	//COPIEDDDDDD CHANGE LATER
@@ -153,8 +163,121 @@ public class DnsClient {
 			return "0";
 	}
 
+	//DECODE
+
+	public static void decode(ByteBuffer sentData, ByteBuffer receivedData, int questionLength) {
+		position = 0;
+		// HEADER
+		//ID
+		if(sentData.getShort(0)!=receivedData.getShort(0)) {
+			System.out.println("not the good id");
+		}
+		// header involving bits
+		byte[] bytearr = new byte [2];
+		bytearr[0] = receivedData.get(2);
+		bytearr[1] = receivedData.get(3);
+		BitSet headerPartReceived = BitSet.valueOf(bytearr);
+		byte[] bytearr2 = new byte [2];
+		bytearr2[0] = sentData.get(2);
+		bytearr2[1] = sentData.get(3);
+		BitSet headerPartSent = BitSet.valueOf(bytearr2);
+		decodeHeader(headerPartReceived,headerPartSent);
+		//rest of the header
+		int qdCount = receivedData.getShort(4);
+		int anCount = receivedData.getShort(6);
+		int nsCount = receivedData.getShort(8);
+		int arCount = receivedData.getShort(10);
+		
+		position = 13;
+		
+		//Question
+		//check if both questionReceived and ByteBuffer questionSent are the same
+		//check either as bytebuffers or as byte arrays
+		while(position < 13 + questionLength) {
+			if(receivedData.get(position)!=sentData.get(position)) {
+				System.out.println("didn't receive the right question");
+			}
+			position++;
+		}
+		
+		//Answer		
+		// parse bytes, but need to know when a byte is part of an
+		// offset signal
+		
+		//NAME: most likely an offset to the sent package? need byte manipulations
+		position ++;
+		
+		dnsServerName(receivedData);		
+		
+		position++;
+		
+		// TYPE: 16 bit (2 bytes) specific values
+		/*
+		 	0x0001 for a type-A query (host address)
+			0x0002 for a type-NS query (name server)
+			0x000f for a type-MX query (mail server)
+			0x0005 corresponding to CNAME records.
+		 */
+		
+		
+		int type = receivedData.getShort(position);
+		if(type == 1) {
+			//type A
+		}
+		else if (type ==2) {
+			//type NS
+		}
+		else if (type == 15) {
+			//type MX
+		}
+		else if (type == 5) {
+			// CNAME
+		}
+		else {
+			// error
+		}
+		position += 2;
+		
+		// CLASS: should be 0x0001
+		if (receivedData.getShort(position)!=1) {
+			System.out.println("not good class?");
+		}
+		position += 2;
+		
+		// TTL: 32 bit (4 byes) check if 0?
+		if (receivedData.getInt(position)!=0) {
+			System.out.println("not 0 TTL?");
+		}
+		else {
+			System.out.println("0 TTL");
+		}
+		position += 4;
+				
+		//RDLENGTH: 16 bit int (2 bytes) length of RDATA
+		
+		int rdLength = receivedData.getInt(position);
+		
+		// RDATAL: depends on TYPE
+		if(type == 1) {
+			//type A IP Address Record (4 bytes)
+		}
+		else if (type ==2) {
+			//type NS server name same type as QNAME
+		}
+		else if (type == 15) {
+			//type MX preference + exchange
+		}
+		else if (type == 5) {
+			// CNAME name of the alias
+		}
+		else {
+			// error
+		}
+	}
+	
+	
 	//HEADER
-	public static void analyseReceivedHeader(BitSet headerReceived, BitSet headerSent) {
+	public static void decodeHeader(BitSet headerReceived, BitSet headerSent) {
 		//ID
 		if(!headerReceived.get(0, 16).equals(headerSent.get(0, 16))) {
 			System.out.println("not the good id");
@@ -182,74 +305,51 @@ public class DnsClient {
 		}
 		else {
 			System.out.println("no recursion possible from server");
-		}
+		} 
 		// ignored Z (3 bits)
 		//TODO: RCODE, needs implementation,
 		if(!headerReceived.get(28)||!headerReceived.get(29)||!headerReceived.get(30)
 				|| !headerReceived.get(31)||!headerReceived.get(32)) {
 			System.out.println("some error");
 		}
-
+						
 	}
-
-
-	public static void analyseReceivedQuestion
-	(ByteBuffer questionReceived, ByteBuffer questionSent) {
-		//check if both questionReceived and ByteBuffer questionSent are the same
-		//check either as bytebuffers or as byte arrays
-		if(!questionReceived.equals(questionSent)) {
-			System.out.println("didn't receive the right question");
+	
+	public static String dnsServerName(ByteBuffer receivedData) {
+		int offset = 0;		
+		int namePosition = position;
+		String domainName = "";
+		boolean offsetFound = false;
+		while (receivedData.get(namePosition)!=0) {
+			if(isOffset(receivedData.get(namePosition))){
+				offset = receivedData.getShort(namePosition) - 49152; //substract the value two leftmost bits TODO: change -> signed short
+				namePosition = offset;
+				offsetFound = true;
+			}
+			else {
+				int nextNumberOfChars = receivedData.get(namePosition);
+				for (int i=0; i<nextNumberOfChars; i++) {
+					domainName += (char) receivedData.get(namePosition);
+					namePosition++;
+					if(!offsetFound) {
+						position = namePosition;
+					}
+				}
+				if(receivedData.get(namePosition+1)!=0) {
+					domainName += ".";
+				}
+			}
 		}
+		return domainName;
 	}
-
-	public static void analyseReceivedAnswer
-		(ByteBuffer answerReceived) {
-		// parse bytes, but need to know when a byte is part of an
-		// offset signal
-
-		//NAME: most likely an offset to the sent package? need bit manipulations
-
-		// TYPE: 16 bit (2 bytes) specific values
-		/*
-		 	0x0001 for a type-A query (host address)
-			0x0002 for a type-NS query (name server)
-			0x000f for a type-MX query (mail server)
-			0x0005 corresponding to CNAME records.
-		 */
-		int i =4;
-
-		int type = answerReceived.getShort(i);
-		if(type == 1) {
-			//type A
+	
+	public static boolean isOffset(byte bt1) {
+		byte [] btArray = new byte [1];
+		btArray[0] = bt1;
+		BitSet btSet = BitSet.valueOf(btArray);
+		if(btSet.get(0) && btSet.get(1)) {
+			return true;
 		}
-		else if (type ==2) {
-			//type NS
-		}
-		else if (type == 15) {
-			//type MX
-		}
-		else if (type == 5) {
-			// CNAME
-		}
-		else {
-			// error
-		}
-
-		// CLASS: should be 0x0001
-		if (answerReceived.getShort(i+2)!=1) {
-			System.out.println("not good class?");
-		}
-
-		// TTL: 32 bit (4 byes) check if 0?
-		if (answerReceived.getInt(i+4)!=0) {
-			System.out.println("not 0 TTL?");
-		}
-		else {
-			System.out.println("0 TTL");
-		}
-
-		//RDLENGTH: 16 bit int (4 bytes) length of RDATA
-
-		// RDATAL: depends on TYPE
-	}
+		return false;
+	}	
 }
