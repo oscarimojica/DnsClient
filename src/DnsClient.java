@@ -120,11 +120,44 @@ public class DnsClient {
 		//NAME: most likely an offset to the sent package? need bit manipulations
 		
 		// TYPE: 16 bit (2 bytes) specific values
+		/*
+		 	0x0001 for a type-A query (host address)
+			0x0002 for a type-NS query (name server)
+			0x000f for a type-MX query (mail server)
+			0x0005 corresponding to CNAME records.
+		 */
+		int i =4;
+		
+		int type = answerReceived.getShort(i);
+		if(type == 1) {
+			//type A
+		}
+		else if (type ==2) {
+			//type NS
+		}
+		else if (type == 15) {
+			//type MX
+		}
+		else if (type == 5) {
+			// CNAME
+		}
+		else {
+			// error
+		}
 		
 		// CLASS: should be 0x0001
+		if (answerReceived.getShort(i+2)!=1) {
+			System.out.println("not good class?");
+		}
 		
 		// TTL: 32 bit (4 byes) check if 0?
-		
+		if (answerReceived.getInt(i+4)!=0) {
+			System.out.println("not 0 TTL?");
+		}
+		else {
+			System.out.println("0 TTL");
+		}
+				
 		//RDLENGTH: 16 bit int (4 bytes) length of RDATA
 		
 		// RDATAL: depends on TYPE
