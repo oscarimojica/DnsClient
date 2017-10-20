@@ -233,105 +233,120 @@ public class DnsClient {
 		// offset signal
 		
 		for(int j = 0; j<anCount; j++) {
-			
-			System.out.println("anCount is: " + anCount);
+			System.out.println("current anCount is: " + j);
+			decodeAnswer(receivedData);
+		}
 		
-			//NAME: most likely an offset to the sent package? need byte manipulations
-					
-			String nameInAnswer = dnsServerName(receivedData);
-			System.out.println("The name in answer is: " + nameInAnswer);
-			
-			System.out.println("position after the answer is: " + position);
-			// TYPE: 16 bit (2 bytes) specific values
-			/*
-			 	0x0001 for a type-A query (host address)
-				0x0002 for a type-NS query (name server)
-				0x000f for a type-MX query (mail server)
-				0x0005 corresponding to CNAME records.
-			 */		
-			int type = receivedData.getShort(position);
-			if(type == 1) {
-				//type A
-				System.out.println("the type is host address");
-			}
-			else if (type ==2) {
-				//type NS
-				System.out.println("name server");
-			}
-			else if (type == 15) {
-				//type MX
-				System.out.println("mail server");
-			}
-			else if (type == 5) {
-				// CNAME
-				System.out.println("the type is CNAME");
-			}
-			else {
-				// error
-			}
-			position += 2;
-			
-			// CLASS: should be 0x0001
-			if (receivedData.getShort(position)!=1) {
-				System.out.println("not good class");
-			}
-			position += 2;
-			
-			// TTL: 32 bit (4 byes) check if 0?
-			if (receivedData.getInt(position)!=0) {
-				System.out.println("TTL is " + receivedData.getInt(position));
-			}
-			else {
-				System.out.println("0 TTL");
-			}
-			position += 4;
-					
-			//RDLENGTH: 16 bit int (2 bytes) length of RDATA
-			
-			int rdLength = receivedData.getShort(position);
-			System.out.println("The rdLength is: " + rdLength);
-			position+=2;
-			String RData = "";
-			
-			// RDATAL: depends on TYPE
-			if(type == 1) {
-				//type A IP Address Record (4 bytes)
-				for(int i=0;i<rdLength;i++) {
-					RData += receivedData.get(position)&255; //convert to unsigned
-					if(i!=3) {
-						RData += ".";
-					}
-					position++;
+		for(int j = 0; j<nsCount; j++) {
+			System.out.println("current nsCount is: " + j);
+			decodeAnswer(receivedData);
+		}
+		
+		for(int j = 0; j<arCount; j++) {
+			System.out.println("current arCount is: " + j);
+			decodeAnswer(receivedData);
+		}
+		
+		
+	}
+	
+	public static void decodeAnswer (ByteBuffer receivedData) {		
+		
+		//NAME: most likely an offset to the sent package? need byte manipulations
+				
+		String nameInAnswer = dnsServerName(receivedData);
+		System.out.println("The name in answer is: " + nameInAnswer);
+		
+		System.out.println("position after the answer is: " + position);
+		// TYPE: 16 bit (2 bytes) specific values
+		/*
+		 	0x0001 for a type-A query (host address)
+			0x0002 for a type-NS query (name server)
+			0x000f for a type-MX query (mail server)
+			0x0005 corresponding to CNAME records.
+		 */		
+		int type = receivedData.getShort(position);
+		if(type == 1) {
+			//type A
+			System.out.println("the type is host address");
+		}
+		else if (type ==2) {
+			//type NS
+			System.out.println("name server");
+		}
+		else if (type == 15) {
+			//type MX
+			System.out.println("mail server");
+		}
+		else if (type == 5) {
+			// CNAME
+			System.out.println("the type is CNAME");
+		}
+		else {
+			// error
+		}
+		position += 2;
+		
+		// CLASS: should be 0x0001
+		if (receivedData.getShort(position)!=1) {
+			System.out.println("not good class");
+		}
+		position += 2;
+		
+		// TTL: 32 bit (4 byes) check if 0?
+		if (receivedData.getInt(position)!=0) {
+			System.out.println("TTL is " + receivedData.getInt(position));
+		}
+		else {
+			System.out.println("0 TTL");
+		}
+		position += 4;
+				
+		//RDLENGTH: 16 bit int (2 bytes) length of RDATA
+		
+		int rdLength = receivedData.getShort(position);
+		System.out.println("The rdLength is: " + rdLength);
+		position+=2;
+		String RData = "";
+		
+		// RDATAL: depends on TYPE
+		if(type == 1) {
+			//type A IP Address Record (4 bytes)
+			for(int i=0;i<rdLength;i++) {
+				RData += receivedData.get(position)&255; //convert to unsigned
+				if(i!=3) {
+					RData += ".";
 				}
-				System.out.println("the RDATA IP is:" + RData);
-				
+				position++;
 			}
-			else if (type ==2) {
-				//type NS server name same type as QNAME
-				RData = dnsServerName(receivedData);
-				System.out.println("The name in answer is: " + RData);
-			}
-			else if (type == 15) {
-				//type MX preference + exchange
-				//Preference
-				short preference = receivedData.getShort(position); 
-				System.out.println("the preference is: " + preference);
-				position += 2;
-				
-				//Exchange
-				RData = dnsServerName(receivedData);
-				System.out.println("The mx name in answer is: " + RData);
-				
-			}
-			else if (type == 5) {
-				// CNAME name of the alias
-				System.out.println(position + " " + receivedData.get(position));
-				RData = dnsServerName(receivedData);
-				System.out.println("The cname in answer is: " + RData);
-			}
-			else {
-				System.out.println("type of response not supported");
-			}
+			System.out.println("the RDATA IP is:" + RData);
+			
+		}
+		else if (type ==2) {
+			//type NS server name same type as QNAME
+			RData = dnsServerName(receivedData);
+			System.out.println("The name in answer is: " + RData);
+		}
+		else if (type == 15) {
+			//type MX preference + exchange
+			//Preference
+			short preference = receivedData.getShort(position); 
+			System.out.println("the preference is: " + preference);
+			position += 2;
+			
+			//Exchange
+			RData = dnsServerName(receivedData);
+			System.out.println("The mx name in answer is: " + RData);
+			
+		}
+		else if (type == 5) {
+			// CNAME name of the alias
+			System.out.println(position + " " + receivedData.get(position));
+			RData = dnsServerName(receivedData);
+			System.out.println("The cname in answer is: " + RData);
+		}
+		else {
+			System.out.println("type of response not supported");
 		}
 	}
 	
