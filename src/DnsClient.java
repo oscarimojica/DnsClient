@@ -22,7 +22,7 @@ public class DnsClient {
 
 		//printBB(sendData);
 
-		getQuestion("www.mcgill.ca",sendData);
+		getQuestion("www.google.com",sendData);
 
 		short QTYPE = 1;
 		sendData.putShort(QTYPE);
@@ -33,7 +33,7 @@ public class DnsClient {
 		printBB(sendData);
 
 		DatagramSocket clientSocket = new DatagramSocket();
-		byte[] ipAddr = translateIPAddress("74.15.208.134");
+		byte[] ipAddr = translateIPAddress("132.206.44.21");
 		byte[] snd = sendData.array();
 		InetAddress ip = InetAddress.getByAddress(ipAddr);
 		DatagramPacket packet = new DatagramPacket(snd, snd.length, ip, 53);
@@ -73,7 +73,7 @@ public class DnsClient {
 		
 		byte[] received = receivePacket.getData();
 		ByteBuffer recievedData = ByteBuffer.wrap(received);
-		decode(sendData, recievedData,19);
+		decode(sendData, recievedData);
 		
 //		BitSet headerBitsSent = BitSet.valueOf(new byte [] {3,7});
 //		for(int i =0; i<16; i++) {
@@ -173,7 +173,7 @@ public class DnsClient {
 
 	//DECODE
 
-	public static void decode(ByteBuffer sentData, ByteBuffer receivedData, int questionLength) {
+	public static void decode(ByteBuffer sentData, ByteBuffer receivedData) {
 		position = 0;
 		
 		// HEADER
@@ -208,18 +208,25 @@ public class DnsClient {
 		
 		position = 12;
 		
-		int endOfQuestion = position + questionLength;
+		int endOfQuestion = position;
 		//Question
 		//check if both questionReceived and ByteBuffer questionSent are the same
 		//check either as bytebuffers or as byte arrays
-		while(position < endOfQuestion) {
+		
+		while(receivedData.get(position)!=0) {
 			if(receivedData.get(position)!=sentData.get(position)) {
 				System.out.println("didn't receive the right question");
 			}
 			position++;
 		}
-		
+		for (int i = 0; i<5; i++) {
+			if(receivedData.get(position)!=sentData.get(position)) {
+				System.out.println("didn't receive the right question");
+			}
+			position++;
+		}
 		System.out.println("position of the answer is: " + position);
+		System.out.println("the next byte is: " + receivedData.get(position) );
 		
 		//Answer		
 		// parse bytes, but need to know when a byte is part of an
@@ -361,7 +368,6 @@ public class DnsClient {
 		String domainName = "";
 		boolean offsetFound = false;
 		while (receivedData.get(namePosition)!=0) {
-			System.out.println(namePosition);
 			if(isOffset(receivedData.get(namePosition))){				
 				namePosition = getOffset(receivedData, namePosition);
 				offsetFound = true;
@@ -408,9 +414,6 @@ public class DnsClient {
 		byte [] btArray = {bf.get(offsetPosition+1), bf.get(offsetPosition)};
 		BitSet btSet = BitSet.valueOf(btArray);
 		int offset = 0;
-		System.out.println(bf.get(offsetPosition));
-		System.out.println(bf.get(offsetPosition+1));
-		System.out.println(offsetPosition);
 		for(int i =0; i<16; i++) {
 			//System.out.println(btSet.get(i));
 		}
