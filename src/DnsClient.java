@@ -24,8 +24,6 @@ public class DnsClient {
 
 		GetHeader(sendData);
 
-		//printBB(sendData);
-
 		getQuestion(website,sendData);
 
 		short QTYPE = queryType;
@@ -66,7 +64,6 @@ public class DnsClient {
 				clientSocket.receive(receivePacket);
 				long endTime = System.currentTimeMillis();
 				timeToReceive = endTime - startTime;
-				//printbyte(receiveData);
 				rc = true;
 				System.out.println("Response received after " + (double) timeToReceive/1000 
 						+ " seconds (" + attempt + " retries)");
@@ -86,7 +83,6 @@ public class DnsClient {
 			System.out.println(error);
 		}		
 	}
-	//COPIEDDDDDD CHANGE LATER
 
 	public static byte[] splitIP(String ip) {
 		byte[] result = new byte[4];
@@ -133,14 +129,6 @@ public class DnsClient {
 		}
 	}
 
-	//Method to print byte values
-	public static void printbyte(byte[] b) {
-		for (int i = 0; i<b.length;i++){
-			System.out.print(String.format("%02X ", b[i]) + " ");
-		}
-		System.out.println("Done");
-	}
-
 	public static void GetHeader(ByteBuffer header){
 		//ByteBuffer header = ByteBuffer.allocate(12);
 		short flags,QDCOUNT,ANCOUNT,NSCOUNT,ARCOUNT;
@@ -182,14 +170,6 @@ public class DnsClient {
 		}
 		//Places 0 byte to signal the end of the question.
 		question.put((byte) 0);
-	}
-
-	public static void printBB(ByteBuffer header){
-		byte[] test = header.array();
-		for (int i = 0; i<test.length;i++){
-			System.out.print(test[i] + " ");
-		}
-		System.out.println("Done");
 	}
 
 	public static String getID(){
