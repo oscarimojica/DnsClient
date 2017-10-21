@@ -5,12 +5,18 @@ import  java.net.*;
 import java.nio.ByteBuffer;
 
 public class DnsClient {
-	
+
 	public static int position = 0;
+	public static int timeout = 5;
+	public static int retries = 3;
+	public static int port = 53;
+	public static short queryType = 1;
+	public static String IP , website;
 
 	public static void main(String[] args) throws IOException {
 
-		//byte[] sendData = new byte[1024];
+		inputs(args);
+
 		ByteBuffer sendData = ByteBuffer.allocate(1024);
 
 		//System.out.println(hex);
@@ -22,33 +28,55 @@ public class DnsClient {
 
 		//printBB(sendData);
 
-		getQuestion("www.google.com",sendData);
+		getQuestion(website,sendData);
 
-		short QTYPE = 1;
+		short QTYPE = queryType;
+		switch(QTYPE){
+			case 1:
+				System.out.println("Request Type A");
+				break;
+			case 2:
+				System.out.println("Request NS");
+				break;
+			case 15:
+				System.out.println("Request MX");
+				break;
+		}
 		sendData.putShort(QTYPE);
 		short QCLASS = 1;
 		sendData.putShort(QCLASS);
 
 
-		printBB(sendData);
-
 		DatagramSocket clientSocket = new DatagramSocket();
-		byte[] ipAddr = translateIPAddress("132.206.44.21");
+		byte[] ipAddr = splitIP(IP);
 		byte[] snd = sendData.array();
+		byte[] receiveData = new byte[1024];
 		InetAddress ip = InetAddress.getByAddress(ipAddr);
 		DatagramPacket packet = new DatagramPacket(snd, snd.length, ip, 53);
-		System.out.println("RP is :"+ packet);
-		clientSocket.send(packet);
-
-		byte[] receiveData = new byte[1024];
 		DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
-		System.out.println("RP is :"+ receivePacket);
-		clientSocket.receive(receivePacket);
 
-		printbyte(receiveData);
-		System.out.println("RP is :"+ receivePacket);
+
+		clientSocket.setSoTimeout(timeout*1000);
+		int atempt=1;
+		boolean rc = false;
+		while (atempt<=retries && !rc){
+			try{
+				clientSocket.send(packet);
+
+				clientSocket.receive(receivePacket);
+				printbyte(receiveData);
+				rc = true;
+			}
+				catch(SocketTimeoutException e ){
+				atempt++;
+			}
+
+		}
 		clientSocket.close();
-		System.out.println("RP is :"+ receivePacket);
+
+		System.out.println("The number of atempts is :"+ atempt);
+
+
 		// RECEIVING
 		//String receivedMsg = msg;
 		//analyseReceivedHeader(receivedMsg, msg);
@@ -62,45 +90,76 @@ public class DnsClient {
 			btValue = !btValue;
 		}*/
 		System.out.println(bt.length());
-		
-		
-		// RECEIVING		
+
+
+		// RECEIVING
 		byte[] bytearr = new byte [2];
 		bytearr[0] = (byte) 3;
 		bytearr[1] = (byte) 4;
 		ByteBuffer buf = ByteBuffer.wrap(bytearr);
 		System.out.println(buf.getShort(0));
-		
+
 		byte[] received = receivePacket.getData();
 		ByteBuffer recievedData = ByteBuffer.wrap(received);
 		decode(sendData, recievedData);
-		
+
 //		BitSet headerBitsSent = BitSet.valueOf(new byte [] {3,7});
 //		for(int i =0; i<16; i++) {
 //			System.out.println(headerBitsSent.get(i));
 //		}
 	}
 	//COPIEDDDDDD CHANGE LATER
-	public static byte[] translateIPAddress(String ip) {
+
+	public static byte[] splitIP(String ip) {
 		byte[] result = new byte[4];
-
-		// break into individual octets
-		String[] subIp = ip.split("\\.");
-		for (int i = 0; i < subIp.length; i++) {
-			int octet = Integer.valueOf(subIp[i]);
-
-			// conversion from int to unsigned byte is as easy as casting
-			result[i] = (byte) octet;
-
-			System.out.println("Original: " + octet + " Altered: " + result[i]);
+		String[] IP = ip.split("\\.");
+		for (int i = 0; i < IP.length; i++) {
+			int seg = Integer.valueOf(IP[i]);
+			result[i] = (byte) seg;
 		}
-
 		return result;
 	}
-	//COPIED CHANGE LATERRRRRR
+
+	public static void inputs(String[] args) {
+		website = args[args.length-1];
+		System.out.println("DnsClient sending request for " + website);
+
+		for (int i = 0; i<args.length;i++){
+
+			if (args[i].contains("@")){
+				IP = args[i].substring(1,args[i].length());
+				System.out.println("Server :" + IP);
+			}
+
+			switch (args[i]){
+			case "-t":
+				timeout = Integer.parseInt(args[i+1]);
+				break;
+
+			case "-r":
+				retries = Integer.parseInt(args[i+1]);
+				break;
+
+			case "-p":
+				port = Integer.parseInt(args[i+1]);
+				break;
+
+			case "-mx":
+				queryType = 0x000f;
+				break;
+
+			case "-ns":
+				queryType = 0x0002;
+				break;
+			}
+		}
+
+	}
+
+	//Method to print byte values
 	public static void printbyte(byte[] b) {
 		for (int i = 0; i<b.length;i++){
-			System.out.print(b[i] + " ");
+			System.out.print(String.format("%02X ", b[i]) + " ");
 		}
 		System.out.println("Done");
 	}
@@ -175,13 +234,13 @@ public class DnsClient {
 
 	public static void decode(ByteBuffer sentData, ByteBuffer receivedData) {
 		position = 0;
-		
+
 		// HEADER
 		//ID
 		if(sentData.getShort(0)!=receivedData.getShort(0)) {
 			System.out.println("not the good id");
 		}
-		
+
 		// header involving bits
 		byte[] byteArrReceived = new byte [2];
 		byteArrReceived[0] = receivedData.get(3);
@@ -193,26 +252,26 @@ public class DnsClient {
 		BitSet headerBitsSent = BitSet.valueOf(byteArrSent);
 		decodeBitsInHeader(headerBitsReceived,headerBitsSent);
 		System.out.println(receivedData.get(3));
-		
+
 		for(int i =0; i<16; i++) {
 			//System.out.println(headerBitsReceived.get(i));
 		}
-		
+
 		//rest of the header
 		int qdCount = receivedData.getShort(4);
 		int anCount = receivedData.getShort(6);
 		int nsCount = receivedData.getShort(8);
 		int arCount = receivedData.getShort(10);
-		
+
 		System.out.println(qdCount + " " + anCount + " " + nsCount + " "+ arCount);
-		
+
 		position = 12;
-		
+
 		int endOfQuestion = position;
 		//Question
 		//check if both questionReceived and ByteBuffer questionSent are the same
 		//check either as bytebuffers or as byte arrays
-		
+
 		while(receivedData.get(position)!=0) {
 			if(receivedData.get(position)!=sentData.get(position)) {
 				System.out.println("didn't receive the right question");
@@ -227,16 +286,16 @@ public class DnsClient {
 		}
 		System.out.println("position of the answer is: " + position);
 		System.out.println("the next byte is: " + receivedData.get(position) );
-		
-		//Answer		
+
+		//Answer
 		// parse bytes, but need to know when a byte is part of an
 		// offset signal
-		
+
 		//NAME: most likely an offset to the sent package? need byte manipulations
-				
+
 		String nameInAnswer = dnsServerName(receivedData);
 		System.out.println("The name in answer is: " + nameInAnswer);
-		
+
 		System.out.println("position after the answer is: " + position);
 		// TYPE: 16 bit (2 bytes) specific values
 		/*
@@ -245,8 +304,8 @@ public class DnsClient {
 			0x000f for a type-MX query (mail server)
 			0x0005 corresponding to CNAME records.
 		 */
-		
-		
+
+
 		int type = receivedData.getShort(position);
 		if(type == 1) {
 			//type A
@@ -268,13 +327,13 @@ public class DnsClient {
 			// error
 		}
 		position += 2;
-		
+
 		// CLASS: should be 0x0001
 		if (receivedData.getShort(position)!=1) {
 			System.out.println("not good class");
 		}
 		position += 2;
-		
+
 		// TTL: 32 bit (4 byes) check if 0?
 		if (receivedData.getInt(position)!=0) {
 			System.out.println("TTL is " + receivedData.getInt(position));
@@ -283,14 +342,14 @@ public class DnsClient {
 			System.out.println("0 TTL");
 		}
 		position += 4;
-				
+
 		//RDLENGTH: 16 bit int (2 bytes) length of RDATA
-		
+
 		int rdLength = receivedData.getShort(position);
 		System.out.println("The rdLength is: " + rdLength);
 		position+=2;
 		String RData = "";
-		
+
 		// RDATAL: depends on TYPE
 		if(type == 1) {
 			//type A IP Address Record (4 bytes)
@@ -302,7 +361,7 @@ public class DnsClient {
 				position++;
 			}
 			System.out.println("the RDATA IP is:" + RData);
-			
+
 		}
 		else if (type ==2) {
 			//type NS server name same type as QNAME
@@ -313,9 +372,9 @@ public class DnsClient {
 		else if (type == 15) {
 			//type MX preference + exchange
 			//Preference
-			
+
 			//Exchange
-			
+
 		}
 		else if (type == 5) {
 			// CNAME name of the alias
@@ -324,8 +383,8 @@ public class DnsClient {
 			// error
 		}
 	}
-	
-	
+
+
 	//HEADER bit part
 	public static void decodeBitsInHeader(BitSet headerReceived, BitSet headerSent) {
 		//QR
@@ -352,7 +411,7 @@ public class DnsClient {
 		}
 		else {
 			System.out.println("no recursion possible from server");
-		} 
+		}
 		// ignored Z (3 bits)
 		//TODO: RCODE, needs implementation,
 		if(headerReceived.get(3)||headerReceived.get(2)||headerReceived.get(1)
@@ -360,15 +419,15 @@ public class DnsClient {
 			System.out.println("some error");
 			System.out.println(headerReceived.get(15));
 		}
-						
+
 	}
-	
+
 	public static String dnsServerName(ByteBuffer receivedData) {
 		int namePosition = position;
 		String domainName = "";
 		boolean offsetFound = false;
 		while (receivedData.get(namePosition)!=0) {
-			if(isOffset(receivedData.get(namePosition))){				
+			if(isOffset(receivedData.get(namePosition))){
 				namePosition = getOffset(receivedData, namePosition);
 				offsetFound = true;
 			}
@@ -386,7 +445,7 @@ public class DnsClient {
 				if(receivedData.get(namePosition+1)!=0) {
 					domainName += ".";
 				}
-			}			
+			}
 		}
 		if(offsetFound) {
 			position+=2;
@@ -396,7 +455,7 @@ public class DnsClient {
 		}
 		return domainName;
 	}
-	
+
 	public static boolean isOffset(byte bt1) {
 		byte [] btArray = new byte [1];
 		btArray[0] = bt1;
@@ -409,7 +468,7 @@ public class DnsClient {
 		}
 		return false;
 	}
-	
+
 	public static int getOffset(ByteBuffer bf, int offsetPosition) {
 		byte [] btArray = {bf.get(offsetPosition+1), bf.get(offsetPosition)};
 		BitSet btSet = BitSet.valueOf(btArray);
@@ -420,7 +479,7 @@ public class DnsClient {
 		for(int i =0; i<14; i++) {
 			if(btSet.get(i)) {
 				offset += Math.pow(2,i);
-			}					
+			}
 		}
 		System.out.println("the offset is:" + offset);
 		return offset;
