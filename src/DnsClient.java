@@ -333,14 +333,22 @@ public class DnsClient {
 		 * corresponding to CNAME records.
 		 */
 		int type = receivedData.getShort(position);
+		boolean supportedType = true;
 		if (type != 1 && type != 2 && type != 5 && type != 15) {
-			System.out.println("type of response not supported");
+			supportedType = false;
 		}
+		
+		if (!supportedType) {
+			System.out.println("type of response not supported (" + type + ")");
+		}
+		
 		position += 2;
 
 		// CLASS: should be 0x0001
 		if (receivedData.getShort(position) != 1) {
-			error += "ERROR \t not the good class \n";
+			if(supportedType) {
+				error += "ERROR \t not the good class \n";
+			}			
 		}
 		position += 2;
 
@@ -349,7 +357,9 @@ public class DnsClient {
 		// TTL: 32 bit (4 byes) check if 0?
 		TTL = receivedData.getInt(position);
 		if (TTL <= 0) {
-			error += "ERROR \t TTL is less or equal to 0 \n";
+			if(supportedType) {
+				error += "ERROR \t TTL is less or equal to 0 \n";
+			}			
 		}
 		position += 4;
 
@@ -397,6 +407,8 @@ public class DnsClient {
 			if (!authoritySection) {
 				System.out.println("CNAME \t" + RData + "\t " + TTL + "\t" + authoritative);
 			}
+		} else {
+			position += rdLength;
 		}
 	}
 
