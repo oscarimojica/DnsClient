@@ -78,7 +78,7 @@ public class DnsClient {
 				attempt++;
 			}
 		}
-		if (attempt >= retries) {
+		if (attempt > retries) {
 			error += "ERROR \t Maximum number of retries " + retries + " exceeded \n";
 			System.out.println(error);
 			System.exit(0);
@@ -419,7 +419,7 @@ public class DnsClient {
 			error += "ERROR \t this is not a response \n";
 		} // OPCODE
 		if (!headerReceived.get(11, 15).equals(headerSent.get(11, 15))) {
-			error += "ERROR \t this is not a standart query \n";
+			error += "ERROR \t this is not a standard query \n";
 		} // AA
 		if (headerReceived.get(10)) {
 			// System.out.println("authoritative response");
