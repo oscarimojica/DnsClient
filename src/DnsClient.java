@@ -1,3 +1,12 @@
+/*
+ * ECSE 489 Experiment 2. Fall 2017
+ * Network programming and DNS
+ * 
+ * Daniel Lima			ID: 260576284
+ * Oscar Ivan Mojica	ID: 260576334
+ * 
+ */
+
 import java.util.BitSet;
 import java.util.Random;
 import java.io.*;
